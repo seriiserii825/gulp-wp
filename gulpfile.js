@@ -36,13 +36,40 @@ let gulp = require('gulp'),
 	browserSync = require('browser-sync').create(),
 	rimraf = require("rimraf"),
 	gulpif = require("gulp-if"),
-	replace = require('gulp-replace');
+	replace = require('gulp-replace'),
+	webpack = require('webpack'),
+	webpackStream = require('webpack-stream');
 
 gulp.task('ttf2woff', function () {
 	return gulp.src(['src/assets/fonts/*.ttf'])
 		.pipe(debug({title: "woff"}))
 		.pipe(ttf2woff())
 		.pipe(gulp.dest('src/assets/fonts/'));
+});
+
+gulp.task('scripts', function () {
+	return gulp.src('./src/assets/js/main.js')
+		.pipe(webpackStream({
+			output: {
+				filename: 'main.js',
+			},
+			module: {
+				rules: [
+					{
+						test: /\.(js)$/,
+						exclude: /(node_modules)/,
+						loader: 'babel-loader',
+						query: {
+							presets: ['env']
+						}
+					}
+				]
+			},
+			externals: {
+				jquery: 'jQuery'
+			}
+		}))
+		.pipe(gulp.dest('./build/assets/js/'));
 });
 
 gulp.task('ttf2woff2', function () {
@@ -159,24 +186,24 @@ gulp.task("webp", function () {
 		.on('end', browserSync.reload);
 });
 
-gulp.task("js", function () {
-	return gulp.src('src/assets/js/main.js')
-		.pipe(sourcemaps.init())
-		.pipe(plumber())
-		.pipe(rigger())
-		.pipe(babel({
-			presets: ['@babel/env']
-		}))
-		.pipe(gulp.dest('build/assets/js'))
-		.pipe(uglify())
-		.pipe(rename("main.min.js"))
-		.pipe(sourcemaps.write())
-		.pipe(gulp.dest('build/assets/js'))
-		.pipe(browserSync.reload({
-			stream: true
-		}));
-	// .pipe(notify("Change js"));
-});
+// gulp.task("js", function () {
+// 	return gulp.src('src/assets/js/main.js')
+// 		.pipe(sourcemaps.init())
+// 		.pipe(plumber())
+// 		.pipe(rigger())
+// 		.pipe(babel({
+// 			presets: ['@babel/env']
+// 		}))
+// 		.pipe(gulp.dest('build/assets/js'))
+// 		.pipe(uglify())
+// 		.pipe(rename("main.min.js"))
+// 		.pipe(sourcemaps.write())
+// 		.pipe(gulp.dest('build/assets/js'))
+// 		.pipe(browserSync.reload({
+// 			stream: true
+// 		}));
+// 	// .pipe(notify("Change js"));
+// });
 
 gulp.task("alljs", function () {
 	return gulp.src('src/assets/js/*.js')
@@ -223,7 +250,7 @@ gulp.task("watch", function () {
 	gulp.watch('src/pug/**/*.pug', gulp.series('pug'));
 	gulp.watch('src/assets/stylus/**/*.styl', gulp.series('css'));
 	gulp.watch('src/assets/stylus/**/*.styl', gulp.series('stylint'));
-	gulp.watch('src/assets/js/main.js', gulp.series('js'));
+	gulp.watch('src/assets/js/main.js', gulp.series('scripts'));
 	gulp.watch('src/assets/js/**/*.js', gulp.series('alljs'));
 	gulp.watch(['src/assets/i/**/*.*'], gulp.series("image"));
 	gulp.watch(['src/assets/i/svg/inline/*.*'], gulp.series("svg"));
@@ -248,8 +275,8 @@ gulp.task('default', gulp.series(
 	'clean',
 	'svg',
 	gulp.parallel(
+		'scripts',
 		'css',
-		'js',
 		'alljs',
 		// 'webp',
 		// 'svg-bg',
